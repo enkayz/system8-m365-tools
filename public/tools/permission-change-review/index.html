@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Permission Change Review · System8</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to comparison</a>
+<header><span class="brand">System8</span><span>Microsoft 365 tools</span><nav aria-label="Tools"><a href="/tools/">All tools</a></nav></header>
+<main id="main">
+<h1>Permission Change Review</h1>
+<p class="purpose">Compare configured permissions in two Entra app manifests and record a review of the changes.</p>
+<p class="custody"><strong>No permissions required.</strong> Local browser processing · no upload · no tenant connection.</p>
+<section aria-labelledby="inputs-heading" class="workspace">
+<h2 id="inputs-heading">Compare snapshots</h2>
+<p class="help">Use authorized JSON snapshots for the same appId. Both must include requiredResourceAccess and resourceAccess arrays; empty arrays mean explicitly empty configuration. Maximum 1 MiB per snapshot.</p>
+<div class="editors">
+<div><label for="baseline-file">Open baseline JSON file</label><input id="baseline-file" type="file" accept=".json,application/json" aria-describedby="baseline-error"><label for="baseline">Baseline manifest</label><textarea id="baseline" spellcheck="false" autocomplete="off" aria-describedby="baseline-error" placeholder='{"appId":"…","requiredResourceAccess":[]}'></textarea><p id="baseline-error" class="error" aria-live="polite"></p></div>
+<div><label for="proposed-file">Open proposed JSON file</label><input id="proposed-file" type="file" accept=".json,application/json" aria-describedby="proposed-error"><label for="proposed">Proposed manifest</label><textarea id="proposed" spellcheck="false" autocomplete="off" aria-describedby="proposed-error" placeholder='{"appId":"…","requiredResourceAccess":[]}'></textarea><p id="proposed-error" class="error" aria-live="polite"></p></div>
+</div>
+<div class="actions"><button id="compare" class="primary" disabled>Compare permissions</button><button id="clear">Clear inputs and review</button></div>
+<p id="status" role="status" aria-live="polite">Add both manifests to compare.</p>
+</section>
+<section id="results" aria-labelledby="results-heading" hidden>
+<h2 id="results-heading" tabindex="-1">Review configured permission changes</h2>
+<p class="notice">Configuration is not consent or effective access. Removals do not revoke grants. Permission names are unresolved. Decisions are human notes, not authorization or execution.</p>
+<p>App ID: <code id="app-id"></code></p>
+<div class="counts" aria-label="Permission counts"><span><strong id="count-added">0</strong> added</span><span><strong id="count-removed">0</strong> removed</span><span><strong id="count-unchanged">0</strong> unchanged</span></div>
+<p id="duplicates"></p>
+<h3>Added configuration</h3><ul id="added-list" class="permissions"></ul>
+<h3>Removed configuration</h3><ul id="removed-list" class="permissions"></ul>
+<details><summary>Unchanged configuration</summary><ul id="unchanged-list" class="permissions"></ul></details>
+</section>
+<section class="export" aria-labelledby="export-heading"><h2 id="export-heading">Review packet</h2><p>Normalized snapshots, permission differences and review notes. The JSON contains selected public IDs and notes; handle it as internal information.</p><button id="download" disabled>Download review JSON</button></section>
+<details class="data-help"><summary>Permissions, limits and data handling</summary><p>No OAuth, admin consent, APIs or license are needed for this local comparison. Obtaining authorized manifests is outside this tool. Scope is delegated configuration. Role is application configuration and requires heightened human review.</p><p>Inputs and notes remain in this page’s memory. No storage persistence, analytics, uploads, remote fonts or content network destinations. Static hosting receives ordinary page and asset request metadata. Unknown manifest fields, including credentials, are discarded from the packet.</p><p>Clear or reload discards the page’s inputs and review, not original files or earlier downloads. Each input supports up to 200 resource blocks and 2,000 permission entries; reasons support up to 2,000 characters. Duplicate tuples use set semantics and are disclosed. This is not effective-access analysis and performs no tenant reads, writes, grant revocation or rollback.</p></details>
+<noscript><p class="error">Enable JavaScript to compare manifests locally. No data is sent to a service.</p></noscript>
+</main>
+<footer>System8 · Local manifest comparison · <a href="https://github.com/enkayz/system8-m365-tools/tree/main/public/tools/permission-change-review" rel="noreferrer">Source</a></footer>
+</body>
+</html>
