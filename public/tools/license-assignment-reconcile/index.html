@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>License Assignment Reconcile · System8</title>
+<link rel="stylesheet" href="../permission-change-review/style.css">
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to comparison</a>
+<header><span class="brand">System8</span><span>Microsoft 365 tools</span><nav aria-label="Tools"><a href="/tools/">All tools</a></nav></header>
+<main id="main" tabindex="-1">
+<h1>License Assignment Reconcile</h1>
+<p class="purpose">Compare expected and observed Microsoft 365 user/SKU pairs for a human review handoff.</p>
+<p class="custody"><strong>No permissions required.</strong> Browser-local processing · no upload · no tenant connection.</p>
+<section class="workspace" aria-labelledby="inputs-heading">
+<h2 id="inputs-heading">Compare assignment lists</h2>
+<p class="help" id="schema-help">Open a UTF-8 CSV or paste one on each side. Required headers: <code>UserPrincipalName,SkuId</code> (case-insensitive). One pair per row; no extra columns. Both inputs need at least one assignment. Maximum 1 MiB and 5,000 assignment rows per input.</p>
+<div class="editors">
+<div><label for="expected-file">Open expected CSV file</label><input id="expected-file" type="file" accept=".csv,text/csv" aria-describedby="expected-error schema-help"><label for="expected">Expected assignments — paste CSV</label><textarea id="expected" spellcheck="false" autocomplete="off" aria-busy="false" aria-describedby="expected-error schema-help"></textarea><p id="expected-error" class="error" aria-live="polite"></p></div>
+<div><label for="observed-file">Open observed CSV file</label><input id="observed-file" type="file" accept=".csv,text/csv" aria-describedby="observed-error schema-help"><label for="observed">Observed assignments — paste CSV</label><textarea id="observed" spellcheck="false" autocomplete="off" aria-busy="false" aria-describedby="observed-error schema-help"></textarea><p id="observed-error" class="error" aria-live="polite"></p></div>
+</div>
+<label class="scope" for="scope"><input id="scope" type="checkbox"> I confirm that both lists cover the same tenant and scope.</label>
+<p class="help">This acknowledgement is not tenant verification. Use the same SKU identifiers in both lists: exact GUIDs or case-sensitive SKU part numbers. GUIDs and part numbers are not mapped to each other.</p>
+<div class="actions"><button id="compare" class="primary" disabled>Compare assignments</button><button id="clear">Clear inputs and results</button></div>
+<p id="status" role="status" aria-live="polite">Add both assignment lists and confirm the same tenant and scope.</p>
+<details><summary>CSV schema and synthetic example</summary><p>Example only — synthetic identities, not production data. Header order may be reversed. RFC4180 quoted fields, an optional UTF-8 BOM and CRLF or LF line endings are accepted. Blank rows, extra columns and control characters in fields are rejected.</p><pre>UserPrincipalName,SkuId
+alex@example.com,SPE_E3</pre><p>UPNs are trimmed and lowercased. Supported identities are ASCII, at most 254 characters, with a local name up to 64 characters using letters, digits, apostrophe, ! # ^ ~ _ - and single separating dots. The domain needs at least two valid dot-separated labels. Non-ASCII identities are unsupported. SKUs are not trimmed: use an exact GUID without braces or padding, or letters, digits, underscores and hyphens. GUID-shaped values must contain valid hexadecimal digits. Part-number case is preserved.</p></details>
+</section>
+<section id="results" aria-labelledby="results-heading" hidden>
+<h2 id="results-heading" tabindex="-1">Review pair differences</h2>
+<p class="notice">Membership differences only. These lists do not establish effective entitlement, consent, assignment path, service plans, pricing or inventory completeness. No tenant changes are made.</p>
+<div class="counts" aria-label="Pair counts"><span><strong id="count-expected">0</strong> Expected only</span><span><strong id="count-observed">0</strong> Observed only</span><span><strong id="count-both">0</strong> In both</span></div>
+<p id="duplicates"></p>
+<label for="filter">Show comparison rows</label><select id="filter"><option value="All">All pairs</option><option>Expected only</option><option>Observed only</option><option>In both</option></select>
+<p id="row-status" role="status"></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Scrollable assignment comparison"><table><caption>Normalized user/SKU pair comparison</caption><thead><tr><th scope="col">UserPrincipalName</th><th scope="col">SkuId</th><th scope="col">Comparison</th></tr></thead><tbody id="rows"></tbody></table></div>
+</section>
+<section class="export" aria-labelledby="export-heading"><h2 id="export-heading">Download handoff</h2><p>JSON includes both normalized lists, duplicate counts and all comparison rows. CSV includes all comparison rows, regardless of the display filter. Downloads contain user identities; handle them as internal information.</p><div class="actions"><button id="download-json" disabled>Download normalized JSON</button><button id="download-csv" disabled>Download safe CSV</button></div><p class="help">CSV quotes every cell and prefixes formula-leading values with an apostrophe. Use JSON when exact normalized identifiers are needed; the CSV is a review handoff, not a round-trip input or tenant import.</p></section>
+<details class="data-help"><summary>Permissions, custody and limits</summary><p>No Graph permissions, OAuth, admin consent, API or Microsoft 365 license is needed for local use. Obtaining customer-authorized assignment exports is separate and outside this tool.</p><p>Inputs and results remain in page memory. No content network requests, storage, analytics, dependencies or authentication. Static hosting receives ordinary page and asset request metadata. Only the two required columns are accepted; unrelated columns are rejected, not retained. Duplicate pairs use set semantics with counts disclosed.</p><p>Clear or reload discards the page’s inputs and results; it does not delete original files or earlier downloads and does not guarantee heap erasure. This tool neither verifies tenant/scope nor reads or writes a tenant, and provides no tenant rollback. Partial or inconsistent source inventories can produce misleading differences: review acquisition scope and timing separately.</p></details>
+<noscript><p class="error">Enable JavaScript to compare CSV lists locally. No content is sent to a service.</p></noscript>
+</main>
+<footer>System8 · Version 1.0.0 · <a href="https://github.com/enkayz/system8-m365-tools/tree/main/public/tools/license-assignment-reconcile">Source</a></footer>
+</body>
+</html>

@@ -2,6 +2,13 @@
 
 Static browser-local tools and attributed source downloads. Published archive: https://365.system8.com.au/tools/.
 
+## License Assignment Reconcile — 1.0.0 (2026-11-21)
+Compare expected and observed Microsoft 365 user/SKU pairs for a human review handoff. Open or paste two authorized UTF-8 CSV lists, each with exactly `UserPrincipalName,SkuId` headers and one pair per row. Confirm the same tenant/scope, compare membership differences, filter rows and explicitly download normalized JSON or formula-safe review CSV. No tenant connection, Graph permissions, admin consent or product license is required for local comparison. Acquisition of exports is separately authorized and outside the tool; native exports may need local reshaping to this schema.
+
+Each side requires 1–5,000 assignment rows and at most 1 MiB UTF-8. ASCII UPN syntax is documented in the page. UPNs are trimmed/lowercased; exact GUID SKUs are validated then lowercased; part numbers remain case-sensitive. No GUID-to-part-number mapping, empty-inventory comparison, effective-entitlement/service-plan/assignment-path/consent assessment, price or completeness claim. Duplicate pairs count once, with counts disclosed. Extra columns, malformed data and unsupported identities are rejected. CSV is a protected review export, not a round-trip or tenant import; JSON retains exact normalized identifiers.
+
+Memory-local input/results; no content network destinations, storage, analytics, authentication or runtime dependencies. Clear/reload loses page state, not original files or previous downloads; no heap-erasure guarantee. Hosting sees ordinary asset request metadata. Downloads contain identities and require appropriate internal handling. No tenant mutation or rollback, and no real-tenant test is claimed. New browser tests use `LICENSE_TOOL_URL` (default loopback port 3361); the permission-review suite uses `TOOL_URL` (default 3359).
+
 ## Permission Change Review — 1.0.0 (2026-11-19)
 Compare configured permissions in two Entra app manifests and record a review of the changes. Select local files or paste JSON snapshots for the same appId, compare, review changed entries and explicitly download the JSON packet. No sign-in, OAuth, admin consent, Graph permission or product license is required for the comparison. Obtain manifests only through an authorized customer process. Names remain unresolved. Configuration is not consent/effective access; removals do not revoke grants. Downloads retain selected IDs and reviewer notes, not arbitrary manifest fields.
 

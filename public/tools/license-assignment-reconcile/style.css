@@ -1,0 +1,20 @@
+/* Extends the established System8/Fluent task shell. */
+main:focus{outline:none}
+.scope{display:flex;align-items:flex-start;gap:10px;margin:4px 0 8px;min-height:44px;cursor:pointer}
+.scope input{width:20px;height:20px;flex-shrink:0;margin:2px 0}
+#results{margin-top:28px}
+select{min-height:44px;padding:8px;border:1px solid #718298;background:#fff;color:#202b39;max-width:100%}
+input[type=file]{max-width:100%;min-height:44px}
+input[type=file]::file-selector-button{min-height:44px;cursor:pointer;font:inherit;border:1px solid #718298;border-radius:3px;background:#fff;color:#202b39;padding:8px 12px;margin-right:8px}
+input[type=file]::file-selector-button:hover{background:#e8eff7}
+.table-wrap{max-height:520px;overflow:auto;border:1px solid var(--border);scrollbar-color:#718298 #f3f5f8}
+table{width:100%;min-width:620px;border-collapse:collapse;background:#fff;table-layout:fixed;font-size:.875rem;font-variant-numeric:tabular-nums}
+th{white-space:nowrap}
+caption{text-align:left;padding:12px;font-weight:600;background:#edf2f8}
+th,td{text-align:left;padding:12px;border-bottom:1px solid var(--border);overflow-wrap:anywhere;vertical-align:top}
+th{background:#edf2f8;position:sticky;top:0}
+th:first-child{width:45%}
+pre{padding:12px;background:#edf2f8;overflow:auto;font-size:.875rem}
+code{overflow-wrap:anywhere}
+#row-status{font-size:.875rem;color:var(--muted)}
+@media(max-width:600px){th,td{padding:8px}table{font-size:.8125rem}.counts{gap:8px}h1{font-size:1.7rem}.scope{font-size:.875rem}.table-wrap{max-height:420px}}
