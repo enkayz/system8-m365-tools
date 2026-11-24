@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Mail DNS Cutover Worksheet | System8</title>
+<link rel="stylesheet" href="style.css"><script type="module" src="app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to worksheet</a>
+<header><span class="brand">System8</span><a href="/tools/">Microsoft 365 tools</a></header>
+<main id="main">
+<h1>Mail DNS Cutover Worksheet</h1>
+<p class="intro">Prepare a multi-record DNS cutover handoff from planned timing and your TTL-lowering evidence.</p>
+<p class="custody">Browser-local · Permissions: none · No sign-in, DNS queries or tenant changes</p>
+<form id="worksheet" novalidate>
+<section aria-labelledby="timing-title">
+<h2 id="timing-title">Cutover timing</h2>
+<label for="cutover">Planned cutover time</label>
+<input id="cutover" name="cutover" type="text" maxlength="35" placeholder="e.g. 2026-11-24T10:00:00Z" aria-describedby="time-help" autocomplete="off" spellcheck="false">
+<p id="time-help" class="help">Use ISO date and time with seconds and Z (UTC) or an explicit offset, for example 2026-11-24T18:00:00+08:00. This common time applies to every RRset. All results use UTC.</p>
+</section>
+<section aria-labelledby="rrset-title">
+<h2 id="rrset-title">DNS record sets</h2>
+<p class="help">One row per name and type, not per record value. Enter whole TTL seconds. Leave lowering time blank if unknown; that row remains unverified.</p>
+<p class="assumption">Enter an actual lowering time only when the lower TTL was visible on <strong>all authoritative servers</strong>. The worksheet does not verify this evidence.</p>
+<div id="rows"></div>
+<button id="add" type="button">Add RRset</button><span id="row-count" class="help"></span>
+</section>
+<div class="actions"><button class="primary" type="submit">Calculate handoff</button><button id="clear" type="button">Clear worksheet</button></div>
+<p id="error" role="alert" tabindex="-1" hidden></p>
+</form>
+<section aria-labelledby="result-title">
+<h2 id="result-title">Review handoff</h2>
+<p id="summary" role="status">No calculation yet. Enter your RRsets, then calculate the handoff.</p>
+<p class="help">Modeled windows assume TTL-honouring caches. They do not confirm propagation, migration completion or when to retire services.</p>
+<p id="table-help" class="help">Scroll horizontally within the results to review every timing column. Keyboard: focus the table region, then use the arrow keys.</p>
+<div id="review" class="table-scroll" role="region" aria-describedby="table-help" aria-label="RRset handoff results" tabindex="0" hidden>
+<table><caption>Per-RRset timing — UTC. “Not asserted” means lowering evidence is missing.</caption><thead><tr><th scope="col">DNS name / type</th><th scope="col">TTL old → new (s)</th><th scope="col">Evidence</th><th scope="col">Planned lower-by</th><th scope="col">Actual lowering</th><th scope="col">Old-cache expiry</th><th scope="col">Lead-time shortfall (s)</th><th scope="col">Modeled window end</th></tr></thead><tbody></tbody></table>
+</div>
+<p class="help">Downloads include all rows, normalized input, UTC times and model assumptions. Internal DNS names can be sensitive; store and share exports accordingly.</p>
+<div class="actions"><button id="json" type="button" disabled>Download JSON</button><button id="csv" type="button" disabled>Download CSV</button></div>
+</section>
+<details><summary>Model, limits and data handling</summary>
+<h3>What the model calculates</h3>
+<ul><li>Planned lower-by = cutover − old TTL.</li><li>Old-cache expiry = actual lowering time + old TTL.</li><li>Lead-time shortfall = max(0, old-cache expiry − cutover), in seconds.</li><li>Modeled window end = max(cutover + new TTL, old-cache expiry). Without an actual lowering time, neither expiry nor window end is asserted.</li></ul>
+<p>No DNS lookup or configuration validation is performed. Serve-stale, resolver TTL floors, provider replication, SMTP retries and queued mail are outside this model. No propagation guarantee or decommission recommendation is supplied.</p>
+<h3>Inputs and limits</h3>
+<p>1–100 RRsets, MX/TXT/CNAME only. ASCII DNS names up to 253 characters plus an optional final dot; labels up to 63 characters, letters, digits, hyphens and underscores, no edge hyphens. Use ASCII punycode for international names. Names are lowercased and a final dot is removed; duplicate name/type pairs are rejected. Record values, MX priorities and configuration correctness are not assessed.</p>
+<p>TTLs: 0–2147483647 whole seconds; new TTL must not exceed old TTL. Dates: years 0001–9999, seconds required, up to three fractional digits, explicit Z or numeric offset. Lowering must not be after cutover. Each date input is limited to 35 characters.</p>
+<h3>Custody and permissions</h3>
+<p>No permissions, admin consent, API access or Microsoft 365 license is required. No authentication, upload, analytics or browser storage. Inputs and results stay in page memory until edited, cleared, reloaded or closed. No content network destinations; static hosting receives ordinary page and asset request metadata.</p>
+<p>Clear discards this worksheet, not original evidence, prior downloads or DNS changes. There is no execution or rollback function. CSV cells are quoted and spreadsheet formula prefixes are protected. Review exports before use.</p>
+</details>
+<details><summary>Source, version and changelog</summary><p>System8 · Version 1.0.0 · 2026-11-24: initial worksheet, per-RRset evidence and JSON/CSV handoff.</p><p>Inspectable source: <a href="core.mjs">calculation and exports</a>, <a href="app.mjs">browser interactions</a>, <a href="style.css">styles</a>. No external runtime dependencies.</p></details>
+<footer>System8 is the publisher. This worksheet is not a Microsoft service.</footer>
+</main>
+</body></html>
