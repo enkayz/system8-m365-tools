@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exchange Alias Claim Review | System8</title>
+<link rel="stylesheet" href="style.css"><script type="module" src="app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to claim review</a>
+<header><span class="brand">System8</span><a href="/tools/">Microsoft 365 tools</a></header>
+<main id="main" tabindex="-1">
+<h1>Exchange Alias Claim Review</h1>
+<p class="intro">Check proposed SMTP address claims against your current recipient list and other requests.</p>
+<p class="custody">Browser-local · Permissions: none · No sign-in, upload or tenant changes</p>
+<form id="claims" novalidate>
+<section aria-labelledby="evidence-title">
+<h2 id="evidence-title">Recipient and request evidence</h2>
+<p class="help">Use two nonempty CSVs with headers exactly <code>RecipientId,Address</code>. One bare SMTP address per row; repeat a recipient’s GUID for each address. Both inputs require 1–5000 data rows and at most 1 MiB of UTF-8.</p>
+<p class="help">Flatten your authorized inventory locally: strip only <code>SMTP:</code> / <code>smtp:</code> prefixes from SMTP entries; exclude X500 and other non-SMTP address types. Use the same stable recipient GUID scheme in both lists, not display names.</p>
+<div class="input-grid">
+<div><label for="current">Current recipient CSV</label><textarea id="current" rows="8" autocomplete="off" spellcheck="false" aria-describedby="current-help"></textarea><label for="current-file">Or choose current CSV file</label><input id="current-file" type="file" accept=".csv,text/csv" aria-describedby="current-help current-state"><p id="current-state" class="help" role="status"></p><p id="current-help" class="help">Illustrative row only: <code>aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa,team@example.test</code></p></div>
+<div><label for="requested">Requested claim CSV</label><textarea id="requested" rows="8" autocomplete="off" spellcheck="false" aria-describedby="requested-help"></textarea><label for="requested-file">Or choose requested CSV file</label><input id="requested-file" type="file" accept=".csv,text/csv" aria-describedby="requested-help requested-state"><p id="requested-state" class="help" role="status"></p><p id="requested-help" class="help">Illustrative row only: <code>bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb,team@example.test</code></p></div>
+</div>
+<p class="help">GUIDs and whole SMTP addresses are lowercased for comparison. Leading or trailing spaces are rejected, not repaired. Only ASCII dot-atom local parts and dotted DNS domains are supported; no quoted or international addresses, mailto links or address-type prefixes.</p>
+<label class="check"><input id="identity" type="checkbox">I confirm both lists use the same tenant and stable RecipientId GUID scheme.</label>
+<div class="actions"><button class="primary" type="submit">Review claims</button><button id="clear" type="button">Clear inputs and review</button></div>
+<p id="error" role="alert" tabindex="-1" hidden></p>
+</section>
+</form>
+<section aria-labelledby="result-title">
+<h2 id="result-title">Claim review</h2>
+<p class="assumption">This is not proof of tenant uniqueness or live availability. “Not seen” means only that an address is absent from the supplied current list.</p>
+<p id="summary" role="status">No review yet. Add both CSVs and confirm recipient identity, then review claims.</p>
+<p id="table-help" class="help">Each row is a unique requested recipient/address pair. Flags are independent: a same-owner match does not hide another owner. Scroll horizontally within the table; keyboard users can focus the region and use arrow keys.</p>
+<div id="filters" class="actions" hidden><div><label for="filter">Show status flag</label><select id="filter"><option value="all">All requested pairs</option><option>current-other-owner conflict</option><option>multiple-request-owner conflict</option><option>current-same-owner</option><option>not seen in supplied current list</option></select></div><div><label for="search">Filter address or requested GUID</label><input id="search" type="search" maxlength="254" autocomplete="off"></div></div>
+<p id="visible-count" class="help" role="status"></p>
+<div id="review" class="table-scroll" role="region" aria-label="Requested SMTP claim results" aria-describedby="table-help" tabindex="0" hidden>
+<table><caption>Supplied evidence only — owner GUIDs are not resolved to names.</caption><thead><tr><th scope="col">Address</th><th scope="col">Requested recipient GUID</th><th scope="col">Existing owners</th><th scope="col">Requesting owners</th><th scope="col">Status flags</th></tr></thead><tbody></tbody></table>
+</div>
+<p class="help">Downloads contain all review rows and sensitive recipient/address evidence. CSV is formula-protected for review only, not a tenant import or execution file. JSON also includes both normalized input lists. Store and share exports as internal data.</p>
+<div class="actions"><button id="json" type="button" disabled>Download all rows: JSON</button><button id="csv" type="button" disabled>Download all rows: CSV</button></div>
+</section>
+<details><summary>Scope, limits and data handling</summary>
+<h3>What each flag means</h3>
+<ul><li><strong>current-other-owner conflict:</strong> another GUID holds the address in supplied current evidence.</li><li><strong>multiple-request-owner conflict:</strong> different GUIDs request the same address. Repeated rows for one GUID are not competing owners.</li><li><strong>current-same-owner:</strong> the requesting GUID already holds the address in supplied current evidence.</li><li><strong>not seen in supplied current list:</strong> there is no matching current address in this evidence; it is not an availability decision.</li></ul>
+<h3>Evidence limits</h3>
+<p>Deleted, hidden, hybrid, mail-enabled public folder (MEPF), Entra-only and unexported recipients may be absent. Stale or incomplete exports do not establish tenant-wide coverage. Include every relevant recipient type you are authorized to inventory, including groups. This tool does not assess primary SMTP, accepted domains, policies, deliverability or transfer ordering.</p>
+<p>Exact 8-4-4-4-12 hexadecimal GUIDs only, normalized to lowercase. Address length ≤254 characters; local part ≤64; dotted ASCII DNS labels ≤63 each, no edge hyphens. Common dot-atom punctuation is accepted, but leading, trailing or consecutive local-part dots are not. Unsupported syntax is rejected rather than guessed. CSV permits quoted cells, an optional UTF-8 BOM, LF or CRLF, and one final line ending. Blank rows, extra columns, controls and malformed quoting are rejected. File decoding is fatal on invalid UTF-8.</p>
+<p>Each input: 1 MiB and 5000 data rows maximum, counting duplicates. Duplicate normalized recipient/address pairs count once and are disclosed. Reviews exceeding 50000 related owner references are blocked before results or downloads; this counts existing and requesting owner references across unique requested rows.</p>
+<h3>Custody and authority</h3>
+<p>No permissions, admin consent, authentication, API access or Microsoft 365 license is required for this local comparison. Obtaining the original inventory requires separate customer authority and may have its own access requirements. No tenant reads, writes, execution scripts or rollback actions are supplied.</p>
+<p>No analytics or browser storage. Content stays in page memory; no content network destinations. Static hosting receives ordinary page and asset request metadata. Editing either input or the identity confirmation discards the review and disables exports. Clear removes page inputs, selected files and review memory, not original files or previous downloads. Reload or closing the page also discards the working state.</p>
+</details>
+<details><summary>Source, version and changelog</summary>
+<p>System8 · Version 1.0.0 · 2026-11-25: initial SMTP claim evidence review.</p>
+<p>Inspectable source: <a href="core.mjs">comparison and exports</a>, <a href="app.mjs">browser interactions</a>, <a href="style.css">styles</a>. No external runtime dependencies.</p>
+<p>Microsoft reference: <a href="https://learn.microsoft.com/en-us/troubleshoot/exchange/email-alias/proxy-address-being-used" rel="noreferrer">Proxy address already in use</a>. The linked guidance is not a live check by this tool.</p>
+</details>
+<footer>System8 is the publisher. This tool is not a Microsoft service.</footer>
+</main></body></html>
