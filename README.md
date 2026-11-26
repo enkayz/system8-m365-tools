@@ -2,6 +2,11 @@
 
 Static browser-local tools and attributed source downloads. Published archive: https://365.system8.com.au/tools/.
 
+## Microsoft 365 Change Window Review — 1.0.0 (2026-11-26)
+Review a proposed tenant-admin change and its consecutive rollback allowance against each site's local working schedule. Enter an exact minute-aligned UTC start, execution and rollback minutes, then adjust up to 20 sites' browser-supported IANA time zones, local working weekdays and within-day hours. Review separate working-time collision minutes and dated local phase boundaries; explicitly download all sites as JSON or formula-protected review CSV. Defaults are editable examples of a schedule, not customer records. No tenant access, permissions, sign-in, admin consent, API or additional Microsoft 365 license is needed.
+
+Combined execution/rollback maximum 1440 elapsed minutes; UTC start years 2000–2099. One within-day interval per site; no overnight/split shifts, holidays or calendar reads. Browser timezone rules handle date rollover and DST but future rules can change. Counts do not approve a window, verify staffing/recovery or estimate downtime, and the tool does not schedule Microsoft maintenance or make tenant changes. Inputs stay in page memory with no upload or persistence; explicit downloads include site schedules and notes. Clear/reload does not remove prior downloads. Contract and changelog: `docs/change-window-review.md`. Browser tests use `CHANGE_WINDOW_TOOL_URL` (default loopback port3370) and a fresh absolute `CHANGE_WINDOW_EVIDENCE_DIR`.
+
 ## Exchange Alias Claim Review — 1.0.0 (2026-11-25)
 Check proposed SMTP address claims against your current recipient list and other requests. Open or paste two authorized UTF-8 CSVs with exact headers `RecipientId,Address` and one bare SMTP address per row, using the same stable recipient GUID scheme and tenant. Flatten original SMTP evidence locally; strip only SMTP address-type prefixes and exclude non-SMTP entries. Confirm identity scope, review independent current-other-owner / multiple-request-owner / same-owner / not-seen flags, filter for review and download all rows as JSON or formula-protected CSV. Duplicates count once and are disclosed. No sign-in, permissions, consent, API or additional M365 license is needed for local comparison; obtaining authorized current evidence is separate.
 

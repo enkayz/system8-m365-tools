@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Review a proposed tenant-admin change and consecutive rollback allowance against local site working schedules.">
+<title>Microsoft 365 Change Window Review | System8</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#window">Skip to window inputs</a>
+<header><span class="brand">System8</span><a href="/tools/">All tools</a><span>Microsoft 365 tools</span></header>
+<main>
+<h1>Microsoft 365 Change Window Review</h1>
+<p class="intro">Review a proposed tenant-admin change and its consecutive rollback allowance against each site’s local working schedule.</p>
+<p class="custody">No sign-in, permissions, admin consent or additional Microsoft 365 license needed. Inputs stay in this page’s memory; no upload or storage.</p>
+<noscript><p class="error">Enable JavaScript to review local schedules. No inputs are submitted.</p></noscript>
+<form id="plan" novalidate>
+<section aria-labelledby="window-title" id="window" tabindex="-1">
+<h2 id="window-title">Proposed window</h2>
+<div class="timing-grid">
+<label class="start-label">Start in UTC <input id="start" type="text" autocomplete="off" spellcheck="false" placeholder="YYYY-MM-DDTHH:mmZ" aria-describedby="start-help" required></label>
+<label>Execution minutes <input id="execution" type="number" value="60" min="1" max="1440" step="1" required aria-describedby="duration-help"></label>
+<label>Rollback allowance minutes <input id="rollback" type="number" value="30" min="0" max="1439" step="1" required aria-describedby="duration-help"></label>
+</div>
+<p class="help" id="start-help">Exact UTC format, minute precision; years 2000–2099. For example, <code>2026-11-26T10:00Z</code> is 18:00 in Australia/Perth. Enter your proposed time; this example is not loaded.</p>
+<p class="help" id="duration-help">Whole elapsed minutes, combined maximum 1440 (24 hours). Rollback follows execution immediately, not in parallel. Include execution checks in your estimate; the tool does not estimate duration or validate recovery.</p>
+<label>Handoff notes (optional, up to 1000 characters)<textarea id="notes" rows="2" aria-describedby="notes-help"></textarea></label>
+<p class="help" id="notes-help">For example: record a change reference or an assumption for the reviewer. Avoid secrets; downloads include these notes.</p>
+</section>
+<section aria-labelledby="sites-title">
+<h2 id="sites-title">Site working schedules</h2>
+<p class="help">Enter the sites affected by this proposed change, up to 20. The initial editable schedule is a default, not a customer record.</p>
+<div id="sites"></div>
+<div class="actions"><button type="button" id="add-site">Add site</button><span id="site-count" class="help" role="status"></span></div>
+</section>
+<div class="actions"><button type="submit" class="primary" id="review">Review local impact</button><button type="button" id="clear">Clear inputs and review</button></div>
+<p id="error" class="error" role="alert" tabindex="-1" hidden></p>
+</form>
+<div class="actions" aria-label="Review exports"><button type="button" id="json" disabled>Download all sites JSON</button><button type="button" id="csv" disabled>Download all sites review CSV</button></div>
+<p class="help">Exports include every reviewed site and the handoff notes. CSV prefixes formula-like cells for spreadsheet review; it is not an import file. JSON retains exact entered text. Handle downloads as internal.</p>
+<p id="status" role="status">Enter a UTC start, check the site schedules, then review local impact.</p>
+<section id="results" aria-labelledby="results-title" tabindex="-1" hidden>
+<h2 id="results-title">Local impact review</h2>
+<p id="summary"></p><dl id="utc-window" class="data"></dl>
+<p class="help">Counts are working-time collision minutes, not a risk score. No overlap is not approval or a staffing check.</p>
+<div id="site-results"></div>
+</section>
+<details>
+<summary>Calculation, limits and data handling</summary>
+<p>Every elapsed minute in execution [start, execution end) and rollback [execution end, rollback end) is checked using its actual local date, weekday and time. Working hours include their start and exclude their end. Repeated daylight-saving minutes count twice when both occurrences fall in working hours; skipped local minutes do not occur.</p>
+<p>This browser’s time zone rules are used, including daylight-saving transitions and date rollover. Browser versions can differ, and future time zone rules may change. Confirm the entered dates and local offsets with the affected sites before handing off.</p>
+<p>No holidays, calendars or live service reads. One within-day interval per site; no overnight shifts or split shifts. Weekdays are local to each site. A zero rollback allowance means no rollback minutes were reviewed, not that rollback is unnecessary.</p>
+<p>This is a local impact review only. It does not schedule Microsoft maintenance, estimate downtime, confirm authorization or approval, check staffing availability, validate a rollback plan, or read or change a tenant.</p>
+<p>Bounds: 1–20 sites; names 1–80 characters; browser-supported IANA time zone identifiers up to 100 characters; at least one working weekday; HH:mm start before end; notes up to 1000 characters. Unsupported or excessive inputs block review rather than producing partial results.</p>
+<p>No content network destinations, persistence, analytics, remote fonts or runtime dependencies. Static hosting receives ordinary page and asset request metadata. Clear or reload discards this page’s state, not original records or earlier downloads; no guaranteed memory erasure. Exports contain site names, schedules and notes: handle them as internal. There is no tenant action to roll back.</p>
+</details>
+<footer>System8 · Version 1.0.0 · 26 November 2026</footer>
+</main>
+</body>
+</html>
