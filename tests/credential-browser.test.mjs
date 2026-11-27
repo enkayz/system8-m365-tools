@@ -1,0 +1,81 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {join,isAbsolute} from 'node:path';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/home/hermes/projects/system8-m365-dashboard/node_modules/playwright');
+const executablePath=process.env.PLAYWRIGHT_EXECUTABLE||'/home/hermes/projects/system8-m365-dashboard/test-results/playwright-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
+const url=process.env.CREDENTIAL_TOOL_URL||'http://127.0.0.1:3377/tools/credential-coverage/';
+const evidence=process.env.CREDENTIAL_EVIDENCE_DIR;
+assert.ok(evidence&&isAbsolute(evidence),'Set CREDENTIAL_EVIDENCE_DIR to a fresh absolute build-* directory');await mkdir(evidence,{recursive:true});
+const A='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',B='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',C='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const header='AppId,Kind,CredentialId,StartUtc,EndUtc';
+const data=[header,[A,'secret',B,'2026-11-27T01:00Z','2026-11-27T04:00Z'].join(','),[A,'secret',C,'2026-11-27T03:00Z','2026-11-27T05:00Z'].join(',')].join('\n');
+async function open(t,width=1440){const browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-zygote','--single-process']});t.after(()=>browser.close());return browser.newPage({viewport:{width,height:1000},acceptDownloads:true});}
+async function fill(page,text=data){await page.locator('#start').fill('2026-11-27T00:00Z');await page.locator('#end').fill('2026-11-27T06:00Z');await page.locator('#metadata').fill(text);}
+test('any input edit withdraws every old result and blur validation does not echo hostile input',async t=>{
+ const page=await open(t);await page.goto(url);await fill(page);
+ for(const [selector,value] of [['#start','2026-11-27T00:01Z'],['#end','2026-11-27T06:01Z'],['#metadata',data+'\n']]){
+  await page.locator('#review').click();assert.equal(await page.locator('#results').isVisible(),true);await page.locator(selector).fill(value);assert.equal(await page.locator('#results').isVisible(),false);assert.equal(await page.locator('#result-tables tr').count(),0);assert.match(await page.locator('#status').textContent(),/Review again/);
+ }
+ await page.locator('#metadata').fill('<img src=x onerror=alert(1)>');await page.locator('#start').focus();assert.equal(await page.locator('#error').isVisible(),true);assert.equal(await page.locator('#error img').count(),0);assert.ok(!(await page.locator('#error').textContent()).includes('<img'));
+ await page.locator('#metadata').fill(data);assert.equal(await page.locator('#error').isVisible(),false);
+ await page.locator('#start').fill('2026-02-29T00:00Z');await page.locator('#end').focus();assert.match(await page.locator('#error').textContent(),/calendar/);await page.locator('#review').click();assert.equal(await page.locator('#error').evaluate(e=>e===document.activeElement),true);assert.equal(await page.locator('#results').isVisible(),false);
+});
+function parseCSV(text){const out=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(q&&text[i+1]==='"'){cell+='"';i++;}else q=!q;}else if(!q&&(c===','||c==='\n')){row.push(cell);cell='';if(c==='\n'){out.push(row);row=[];}}else if(!q&&c==='\r'){}else cell+=c;}if(cell||row.length){row.push(cell);out.push(row);}return out;}
+test('explicit downloads include all evidence and windows beyond display limits and cannot export stale data',async t=>{
+ const page=await open(t);await page.goto(url);assert.equal(await page.locator('#json').count(),1,'JSON download control exists');assert.equal(await page.locator('#json').isDisabled(),true);assert.equal(await page.locator('#csv').isDisabled(),true);
+ const minute=n=>'2026-11-27T'+String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')+'Z';
+ const many=[header,...Array.from({length:120},(_,i)=>[A,'secret',i.toString(16).padStart(8,'0')+'-0000-0000-0000-000000000000',minute(2*i+1),minute(2*i+2)].join(','))].join('\n');
+ await fill(page,many);let downloads=0;page.on('download',()=>downloads++);await page.locator('#review').click();assert.equal(downloads,0);assert.equal(await page.locator('#evidence tbody tr').count(),100);assert.equal(await page.locator('#windows tbody tr').count(),100);assert.match(await page.locator('#result-tables').textContent(),/Showing 100 of 241/);
+ for(const extension of ['json','csv']){const pending=page.waitForEvent('download');await page.locator('#'+extension).click();const download=await pending;assert.equal(download.suggestedFilename(),'entra-credential-coverage.'+extension);const content=await readFile(await download.path(),'utf8');await writeFile(join(evidence,'build-all-results.'+extension),content,{flag:'wx'});if(extension==='json'){const j=JSON.parse(content);assert.equal(j.metadata.length,120);assert.equal(j.groups[0].windows.length,241);assert.equal(j.groups[0].gapMinutes,240);}else{const rows=parseCSV(content),head=rows.shift();assert.ok(rows.every(r=>r.length===head.length));const type=head.indexOf('RecordType');assert.equal(rows.filter(r=>r[type]==='evidence').length,120);assert.equal(rows.filter(r=>r[type]==='window').length,241);}}
+ for(const [id,value] of [['start','2026-11-27T00:01Z'],['end','2026-11-27T06:01Z'],['metadata',data]]){await page.locator('#'+id).fill(value);assert.equal(await page.locator('#json').isDisabled(),true);assert.equal(await page.locator('#csv').isDisabled(),true);await page.locator('#json').dispatchEvent('click');assert.equal(downloads,2);await page.locator('#review').click();}
+ await page.locator('#metadata').fill(header);await page.locator('#review').click();assert.equal(await page.locator('#csv').isDisabled(),true);
+});
+test('file import invalidates results at read start and failures never fall back to prior evidence',async t=>{
+ const page=await open(t);await page.goto(url);assert.equal(await page.locator('#file').count(),1,'file input exists');await fill(page);await page.locator('#review').click();
+ await page.evaluate(()=>{const original=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(){const file=this;return new Promise((resolve,reject)=>{window.releaseRead=()=>original.call(file).then(resolve,reject);});};});
+ await page.locator('#file').setInputFiles({name:'authorized-metadata.csv',mimeType:'text/csv',buffer:Buffer.from(data)});
+ assert.equal(await page.locator('#results').isVisible(),false);assert.equal(await page.locator('#json').isDisabled(),true);assert.equal(await page.locator('#review').isDisabled(),true);assert.equal(await page.locator('#metadata').inputValue(),'');
+ await page.locator('#plan').dispatchEvent('submit');assert.equal(await page.locator('#review').isDisabled(),true,'review remains blocked during a pending read');assert.equal(await page.locator('#error').isVisible(),false);
+ await page.locator('#end').fill('2026-11-27T07:00Z');await page.locator('#metadata').fill(header);await page.evaluate(()=>window.releaseRead());await page.waitForTimeout(100);assert.equal(await page.locator('#metadata').inputValue(),header);assert.equal(await page.locator('#review').isDisabled(),false);
+ await page.reload();await page.locator('#file').setInputFiles({name:'metadata.csv',mimeType:'text/csv',buffer:Buffer.from(data)});await page.waitForFunction(()=>document.getElementById('metadata').value.includes('aaaaaaaa'));await page.locator('#start').fill('2026-11-27T00:00Z');await page.locator('#end').fill('2026-11-27T06:00Z');await page.locator('#review').click();assert.equal(await page.locator('#results').isVisible(),true);
+ for(const [buffer,message] of [[Buffer.alloc(1048577,65),/1 MiB/],[Buffer.from([0xff,0xfe]),/UTF-8/],[Buffer.from(header+'\n'+data.split('\n')[1]+',DO-NOT-ECHO'),/five fields/],[Buffer.from(''),/exactly/]]){
+  await page.locator('#file').setInputFiles({name:'<img src=x onerror=alert(1)>.csv',mimeType:'text/csv',buffer});await page.waitForFunction(()=>!document.getElementById('error').hidden);assert.match(await page.locator('#error').textContent(),message);assert.equal(await page.locator('#metadata').inputValue(),'');assert.equal(await page.locator('#json').isDisabled(),true);assert.equal(await page.locator('#results').isVisible(),false);assert.ok(!(await page.locator('main').textContent()).includes('DO-NOT-ECHO'));
+ }
+ await page.evaluate(()=>{File.prototype.arrayBuffer=()=>Promise.reject(new DOMException('DO-NOT-ECHO','NotReadableError'));});await page.locator('#file').setInputFiles({name:'bad.csv',mimeType:'text/csv',buffer:Buffer.from(data)});await page.waitForFunction(()=>document.getElementById('error').textContent.includes('could not'));assert.ok(!(await page.locator('#error').textContent()).includes('DO-NOT-ECHO'));
+});
+test('clear discards all inputs, exports and pending file effects',async t=>{
+ const page=await open(t);await page.goto(url);assert.equal(await page.locator('#clear').count(),1,'Clear control exists');await fill(page);await page.locator('#review').click();await page.locator('#clear').click();
+ for(const id of ['metadata','start','end','file'])assert.equal(await page.locator('#'+id).inputValue(),'');assert.equal(await page.locator('#results').isVisible(),false);assert.equal(await page.locator('#json').isDisabled(),true);assert.equal(await page.locator('#csv').isDisabled(),true);assert.equal(await page.locator('#error').isVisible(),false);assert.equal(await page.locator('#metadata').evaluate(e=>e===document.activeElement),true);
+ await page.evaluate(()=>{const original=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(){const file=this;return new Promise(resolve=>{window.releaseRead=()=>original.call(file).then(resolve);});};});
+ await page.locator('#file').setInputFiles({name:'metadata.csv',mimeType:'text/csv',buffer:Buffer.from(data)});await page.locator('#clear').click();await page.evaluate(()=>window.releaseRead());await page.waitForTimeout(100);assert.equal(await page.locator('#metadata').inputValue(),'');assert.equal(await page.locator('#review').isDisabled(),false);assert.match(await page.locator('#status').textContent(),/cleared/i);
+ await page.locator('#review').click();assert.equal(await page.locator('#error').isVisible(),true);await page.locator('#clear').click();assert.equal(await page.locator('#error').isVisible(),false);assert.equal(await page.locator('#error').textContent(),'');
+});
+test('desktop and mobile keyboard review, downloads, clear and reload keep content local',async t=>{
+ for(const width of [320,390,1440]){
+  const page=await open(t,width),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push({url:r.url(),method:r.method()}));
+  await page.addInitScript(()=>{window.custodyCalls=[];for(const [object,key] of [[Storage.prototype,'setItem'],[window,'fetch'],[XMLHttpRequest.prototype,'open'],[navigator,'sendBeacon'],[IDBFactory.prototype,'open']])object[key]=function(){window.custodyCalls.push(key);throw new Error('Unexpected content custody call');};});
+  await page.goto(url);await page.keyboard.press('Tab');assert.match(await page.locator(':focus').textContent(),/Skip to coverage/);assert.notEqual(await page.locator(':focus').evaluate(e=>getComputedStyle(e).outlineStyle),'none');await page.keyboard.press('Enter');await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('id'),'file');await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('id'),'metadata');await page.keyboard.type(data);await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('id'),'start');await page.keyboard.type('2026-11-27T00:00Z');await page.keyboard.press('Tab');await page.keyboard.type('2026-11-27T06:00Z');await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('id'),'review');await page.keyboard.press('Enter');assert.equal(await page.locator('#results').isVisible(),true);assert.equal(await page.locator('#results').evaluate(e=>e===document.activeElement),true);
+  for(const ext of ['json','csv']){const pending=page.waitForEvent('download');await page.locator('#'+ext).focus();await page.keyboard.press('Enter');const d=await pending,content=await readFile(await d.path(),'utf8');if(ext==='json'){const j=JSON.parse(content);assert.equal(j.metadata.length,2);assert.equal(j.groups[0].gapMinutes,120);}else assert.equal(parseCSV(content).filter(r=>r[0]==='evidence').length,2);}
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('header a').evaluate(e=>getComputedStyle(e).color),'rgb(255, 255, 255)');
+  await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(evidence,'build-ui-'+width+'.png'),fullPage:true});
+  await page.locator('#metadata').fill(data.replace(B,'=HYPERLINK("DO-NOT-ECHO")'));await page.locator('#review').click();assert.equal(await page.locator('#json').isDisabled(),true);assert.ok(!(await page.locator('#error').textContent()).includes('DO-NOT-ECHO'));await page.locator('#clear').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#metadata').inputValue(),'');assert.equal(await page.locator('#error').isVisible(),false);
+  assert.deepEqual(await page.evaluate(()=>window.custodyCalls),[]);assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0);assert.equal(await page.evaluate(()=>document.cookie),'');assert.equal(await page.evaluate(async()=>(await navigator.serviceWorker.getRegistrations()).length),0);assert.equal(await page.evaluate(async()=>(await caches.keys()).length),0);
+  await fill(page);await page.reload();for(const id of ['metadata','start','end','file'])assert.equal(await page.locator('#'+id).inputValue(),'');assert.equal(await page.locator('#results').isVisible(),false);assert.deepEqual(errors,[]);assert.ok(requests.every(r=>r.method==='GET'&&r.url.startsWith(url)&&!new URL(r.url).search));await writeFile(join(evidence,'build-custody-'+width+'.json'),JSON.stringify({width,errors,requests,unexpectedCustodyCalls:[]},null,2),{flag:'wx'});
+ }
+});
+test('mobile result dates and status values are readable without sideways scrolling',async t=>{
+ for(const width of [320,390]){const page=await open(t,width);await page.goto(url);await fill(page);await page.locator('#review').click();
+  const cells=await page.locator('#windows tbody tr').first().locator('td').evaluateAll(nodes=>nodes.map(n=>({left:n.getBoundingClientRect().left,right:n.getBoundingClientRect().right,label:n.dataset.label})));
+  assert.ok(cells.every(c=>c.left>=0&&c.right<=width),'all window columns fit mobile viewport');assert.ok(cells.every(c=>c.label),'every mobile cell retains a readable field label');
+  assert.equal(await page.locator('#metadata').evaluate(e=>e.scrollLeft),0,'metadata header visible again after leaving editor');
+ }
+});
+test('browser primary paste review shows usable gap and distinct-credential overlap windows',async t=>{
+ const page=await open(t);const response=await page.goto(url);assert.equal(response.status(),200,'tool page exists');assert.equal(await page.title(),'Entra Credential Coverage | System8');
+ assert.equal(await page.locator('#metadata').inputValue(),'');await fill(page);await page.getByRole('button',{name:'Review coverage',exact:true}).click();assert.equal(await page.locator('#results').isVisible(),true);assert.equal(await page.locator('#results').evaluate(e=>e===document.activeElement),true);
+ assert.equal(await page.locator('#windows tbody tr').count(),5);assert.match(await page.locator('#summary').textContent(),/2 credential rows.*1 application\/kind group/);assert.match(await page.locator('#groups').textContent(),/120/);assert.match(await page.locator('#groups').textContent(),/60/);
+ const text=await page.locator('#windows').textContent();for(const s of ['Gap','Overlap','2026-11-27T03:00Z','2026-11-27T04:00Z','60 min'])assert.ok(text.includes(s));assert.match(await page.locator('main').textContent(),/Metadata validity only/);assert.match(await page.locator('main').textContent(),/No sign-in/);
+});

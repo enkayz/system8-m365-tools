@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Find gaps and overlapping validity periods in a supplied list of Entra app credentials.">
+<title>Entra Credential Coverage | System8</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#inputs">Skip to coverage inputs</a>
+<header><span class="brand">System8</span><a href="/tools/">All tools</a><span>Microsoft 365 tools</span></header>
+<main>
+<h1>Entra Credential Coverage</h1>
+<p class="intro">Find gaps and overlapping validity periods in a supplied list of Entra app credentials.</p>
+<p class="custody">No sign-in, permissions, admin consent or additional license needed for this local calculation. Metadata stays in this page’s memory; no upload or storage.</p>
+<noscript><p class="error">Enable JavaScript to review metadata locally. No inputs are submitted.</p></noscript>
+<form id="plan" novalidate>
+<section id="inputs" aria-labelledby="input-title" tabindex="-1">
+<h2 id="input-title">Credential metadata</h2>
+<label for="file">Open a metadata CSV instead of pasting</label>
+<input id="file" type="file" accept=".csv,text/csv" aria-describedby="file-help">
+<p class="help" id="file-help">Opening a file replaces the pasted metadata. UTF-8 CSV, maximum 1 MiB. It is read locally, not uploaded. Editing any input cancels a pending read.</p>
+<label for="metadata">Paste CSV metadata</label>
+<p class="help" id="metadata-help">Only these five columns, in this order: <code>AppId</code>, <code>Kind</code>, <code>CredentialId</code>, <code>StartUtc</code>, <code>EndUtc</code>. Use GUIDs and kind <code>secret</code> or <code>certificate</code>. Up to 1000 rows and 1 MiB UTF-8. Never paste secret values, tokens or private keys. Long CSV rows scroll sideways in the editor.</p>
+<textarea id="metadata" rows="6" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="metadata-help" placeholder="AppId,Kind,CredentialId,StartUtc,EndUtc" required></textarea>
+</section>
+<section aria-labelledby="horizon-title">
+<h2 id="horizon-title">Review horizon</h2>
+<div class="horizon-grid">
+<label>Start in UTC <input id="start" type="text" autocomplete="off" spellcheck="false" placeholder="YYYY-MM-DDTHH:mmZ" aria-describedby="utc-help" required></label>
+<label>End in UTC (excluded) <input id="end" type="text" autocomplete="off" spellcheck="false" placeholder="YYYY-MM-DDTHH:mmZ" aria-describedby="utc-help" required></label>
+</div>
+<p class="help" id="utc-help">All times, including CSV dates, must use exact minute UTC: <code>2026-11-27T00:00Z</code>. Years 2000–2099; start before end; horizon at most 366 elapsed days. No date-only, seconds or offset formats.</p>
+</section>
+<div class="actions"><button id="review" class="primary" type="submit">Review coverage</button><button id="clear" type="button">Clear inputs and review</button></div>
+<p id="error" role="alert" tabindex="-1" class="error" hidden></p>
+</form>
+<p id="status" role="status">Supply metadata and a UTC horizon, then review coverage.</p>
+<div class="actions" aria-label="Review exports"><button id="json" type="button" disabled>Download all results JSON</button><button id="csv" type="button" disabled>Download all results CSV</button></div>
+<p class="help">Tables show up to 100 rows each and up to 3 IDs per validity window; downloads include all groups, windows and supplied evidence. CSV protects formula-like cells for spreadsheet review, not import. Handle metadata downloads as internal.</p>
+<section id="results" tabindex="-1" aria-labelledby="results-title" hidden>
+<h2 id="results-title">Coverage review</h2>
+<p id="summary"></p>
+<p class="limit">Metadata validity only. A gap means no supplied credential of that application and kind covers that period. Overlap means 2+ distinct supplied credential IDs have intersecting validity dates; it is not a rotation or safety verdict.</p>
+<div id="result-tables"></div>
+</section>
+<details>
+<summary>Calculation, limits and data handling</summary>
+<p>Applications and credential kinds are reviewed separately. Certificates and secrets are not assumed interchangeable. Only application/kind groups present in the supplied rows are reviewed; missing applications, kinds and credentials are not inferred.</p>
+<p>Validity intervals and the horizon include their start and exclude their end: [start, end). Adjacent boundaries are continuous, without an overlap. Intervals are clipped to the horizon. Fully outside rows remain in the evidence but do not provide coverage. Windows split whenever the active credential IDs change; overlap minutes count once, even with three or more credentials.</p>
+<p>Exact GUID format is validated before lowercasing. Duplicate credential IDs within one application and kind block review. Header names and order are exact; extra fields, malformed rows, ambiguous dates and empty evidence block review. A UTF-8 BOM, quoted CSV fields and CRLF line endings are accepted. No credential values are required or accepted by the five-column schema.</p>
+<p>This does not establish usable credentials, actual authentication, application rollout, interchangeability, revocation status or an outage. No live checks, tenant reads or tenant changes. Obtain metadata separately with appropriate authorization; this tool grants no access and does not check the completeness of your source.</p>
+<p>No content network destinations, analytics, remote fonts or runtime dependencies. Static hosting receives ordinary page and asset request metadata. Clear or reload discards this page’s state, not original files or earlier downloads; no guaranteed memory erasure. There is no tenant operation to roll back.</p>
+</details>
+<footer>System8 · Version 1.0.0 · 27 November 2026 · <a href="https://github.com/enkayz/system8-m365-tools/tree/main/public/tools/credential-coverage">Source</a></footer>
+</main>
+</body>
+</html>

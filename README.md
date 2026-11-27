@@ -2,6 +2,11 @@
 
 Static browser-local tools and attributed source downloads. Published archive: https://365.system8.com.au/tools/.
 
+## Entra Credential Coverage — 1.0.0 (2026-11-27)
+Find gaps and overlapping validity periods in a supplied list of Entra app credentials. Paste or open non-secret CSV metadata with exactly `AppId,Kind,CredentialId,StartUtc,EndUtc`; use application/client GUIDs, credential key-ID GUIDs and kind `secret` or `certificate`. Enter an explicit UTC review horizon, select Review coverage and download complete JSON or protected CSV. Application/kind groups stay separate; missing groups are not inferred. Half-open validity windows show gap, single and overlap minutes with supporting IDs. No sign-in, permissions, admin consent, API or additional license is required for this local calculation; metadata acquisition remains separately authorized.
+
+Maximum 1000 rows / 1 MiB UTF-8, minute-aligned UTC timestamps in years 2000–2099, horizon up to 366 elapsed days. This custom CSV is not a raw Graph/portal export; seconds/offsets are rejected, not silently rounded. Metadata dates are not proof of working credentials, rollout, revocation, interchangeability or outage. Page-memory processing only; no upload/storage, and clear/reload cannot delete previous downloads. No tenant operations or rollback. Contract: `docs/credential-coverage.md`. Browser tests use `CREDENTIAL_TOOL_URL` and a fresh absolute `CREDENTIAL_EVIDENCE_DIR`.
+
 ## Microsoft 365 Change Window Review — 1.0.0 (2026-11-26)
 Review a proposed tenant-admin change and its consecutive rollback allowance against each site's local working schedule. Enter an exact minute-aligned UTC start, execution and rollback minutes, then adjust up to 20 sites' browser-supported IANA time zones, local working weekdays and within-day hours. Review separate working-time collision minutes and dated local phase boundaries; explicitly download all sites as JSON or formula-protected review CSV. Defaults are editable examples of a schedule, not customer records. No tenant access, permissions, sign-in, admin consent, API or additional Microsoft 365 license is needed.
 
