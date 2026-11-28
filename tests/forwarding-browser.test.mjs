@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {join,isAbsolute} from 'node:path';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/home/hermes/projects/system8-m365-dashboard/node_modules/playwright');
+const executablePath=process.env.PLAYWRIGHT_EXECUTABLE||'/home/hermes/projects/system8-m365-dashboard/test-results/playwright-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
+const url=process.env.FORWARDING_TOOL_URL||'http://127.0.0.1:3379/tools/forwarding-route-review/';
+const evidence=process.env.FORWARDING_EVIDENCE_DIR;
+assert.ok(evidence&&isAbsolute(evidence),'Set fresh absolute FORWARDING_EVIDENCE_DIR');await mkdir(evidence,{recursive:true});
+async function open(t,width=1440){const b=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-zygote','--single-process']});t.after(()=>b.close());return b.newPage({viewport:{width,height:1000},acceptDownloads:true});}
+const fixture='Mailbox,ForwardTo\nup@example.com,a@example.com\na@example.com,b@example.com\nb@example.com,a@example.com\nstop@example.com,';
+test('strict UTF-8 local files, failed reads and in-flight races retain inputs and withdraw exports',async t=>{
+ const p=await open(t);await p.goto(url);await p.locator('#input').fill(fixture);await p.locator('#confirm').check();await p.locator('#review').click();
+ const file=buffer=>({name:'settings.csv',mimeType:'text/csv',buffer});
+ await p.locator('#file').setInputFiles(file(Buffer.from([0xff])));await p.waitForFunction(()=>!document.querySelector('#error').hidden);assert.match(await p.locator('#error').textContent(),/UTF-8/);assert.equal(await p.locator('#input').inputValue(),fixture);assert.equal(await p.locator('#json').isDisabled(),true);
+ await p.locator('#file').setInputFiles(file(Buffer.alloc(1048577,65)));assert.match(await p.locator('#error').textContent(),/1 MiB/);
+ await p.locator('#file').setInputFiles(file(Buffer.from('Mailbox,ForwardTo\nfile@example.com,')));await p.waitForFunction(()=>document.querySelector('#input').value.includes('file@example.com'));assert.equal(await p.locator('#results').isVisible(),false);
+ await p.evaluate(()=>{const original=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(){return new Promise((resolve,reject)=>{window.completeRead=()=>original.call(this).then(resolve,reject);});};});
+ await p.locator('#file').setInputFiles(file(Buffer.from(fixture)));await p.locator('#input').fill('Mailbox,ForwardTo\nnew@example.com,');await p.evaluate(()=>window.completeRead());await p.waitForTimeout(100);assert.match(await p.locator('#input').inputValue(),/new@example.com/);assert.equal(await p.locator('#review').isDisabled(),false,'Editing while reading restores review');
+ await p.locator('#file').setInputFiles(file(Buffer.from(fixture)));await p.locator('#clear').click();await p.evaluate(()=>window.completeRead());await p.waitForTimeout(100);assert.equal(await p.locator('#input').inputValue(),'');assert.equal(await p.locator('#json').isDisabled(),true);
+ await p.evaluate(()=>{File.prototype.arrayBuffer=()=>Promise.reject(Error('synthetic read failure'));});await p.locator('#file').setInputFiles(file(Buffer.from(fixture)));await p.waitForFunction(()=>!document.querySelector('#error').hidden);assert.match(await p.locator('#error').textContent(),/read/);
+});
+test('bounded view exports all 500 rows with no storage, network APIs or persistence',async t=>{
+ const p=await open(t);const requests=[];p.on('request',r=>requests.push({url:r.url(),method:r.method()}));
+ await p.addInitScript(()=>{window.custodyCalls=[];for(const [o,k] of [[Storage.prototype,'setItem'],[window,'fetch'],[XMLHttpRequest.prototype,'open'],[navigator,'sendBeacon'],[IDBFactory.prototype,'open']])o[k]=function(){window.custodyCalls.push(k);throw Error('Unexpected custody call');};});
+ await p.goto(url);await p.locator('#input').fill('Mailbox,ForwardTo\n'+Array.from({length:500},(_,i)=>`a${i}@example.com,`).join('\n'));await p.locator('#confirm').check();await p.locator('#review').click();assert.equal(await p.locator('.result-row').count(),100);assert.match(await p.locator('#view-count').textContent(),/100 of 500/);
+ for(const ext of ['json','csv']){const next=p.waitForEvent('download');await p.locator('#'+ext).click();const d=await next;const s=await readFile(await d.path(),'utf8');if(ext==='json')assert.equal(JSON.parse(s).rows.length,500);else assert.equal(s.split('\r\n').length,502);}
+ await p.locator('#confirm').uncheck();assert.equal(await p.locator('#json').isDisabled(),true);assert.equal(await p.locator('.result-row').count(),0);assert.deepEqual(await p.evaluate(()=>window.custodyCalls),[]);assert.equal(await p.evaluate(()=>localStorage.length+sessionStorage.length),0);assert.equal(await p.evaluate(()=>document.cookie),'');assert.equal(await p.evaluate(async()=> (await caches.keys()).length),0);assert.equal(await p.evaluate(async()=> (await navigator.serviceWorker.getRegistrations()).length),0);await p.reload();assert.equal(await p.locator('#input').inputValue(),'');assert.ok(requests.every(r=>r.method==='GET'&&r.url.startsWith(url)&&!new URL(r.url).search));await writeFile(join(evidence,'build-custody.json'),JSON.stringify({requests,custodyCalls:[]},null,2),{flag:'wx'});
+});
+test('long route addresses wrap at 320px and header focus stays white',async t=>{
+ const p=await open(t,320);await p.goto(url);const long='a'.repeat(64)+'@'+['b'.repeat(63),'c'.repeat(63),'d'.repeat(61)].join('.');await p.locator('#input').fill('Mailbox,ForwardTo\n'+long+',next@example.com\nnext@example.com,');await p.locator('#confirm').check();await p.locator('#review').click();await p.locator('.result-row details summary').first().click();assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.locator('header a').focus();assert.equal(await p.locator('header a').evaluate(e=>getComputedStyle(e).color),'rgb(255, 255, 255)');assert.equal(await p.locator('header a').evaluate(e=>getComputedStyle(e).outlineColor),'rgb(255, 255, 255)');await p.locator('#clear').click();await p.locator('#input').fill('Mailbox,ForwardTo\na@example.com,');await p.locator('#confirm').check();await p.locator('#review').click();await p.locator('#input').fill('x'.repeat(1048577));await p.locator('#review').click();assert.match(await p.locator('#error').textContent(),/1 MiB/);assert.equal(await p.locator('#csv').isDisabled(),true);
+});
+test('desktop and mobile keyboard review, traversal filter, exports, edits and clear',async t=>{
+ for(const width of [1440,390,320]){
+ const p=await open(t,width);const errors=[],requests=[];p.on('pageerror',e=>errors.push(e.message));p.on('request',r=>requests.push(r.url()));await p.goto(url);
+ assert.equal(await p.locator('#review').count(),1,'Review action exists');await p.keyboard.press('Tab');assert.match(await p.locator(':focus').textContent(),/Skip/);assert.equal(await p.locator(':focus').evaluate(e=>getComputedStyle(e).color),'rgb(255, 255, 255)');await p.keyboard.press('Enter');
+ await p.locator('#input').fill(fixture);await p.locator('#review').click();assert.match(await p.locator('#error').textContent(),/Confirm/);await p.locator('#confirm').check();await p.locator('#review').focus();await p.keyboard.press('Enter');assert.equal(await p.locator('.result-row').count(),4);assert.equal(await p.locator('#results').evaluate(e=>e===document.activeElement),true);
+ await p.locator('#through').selectOption('a@example.com');assert.equal(await p.locator('.result-row').count(),2);await p.locator('#self').check();assert.equal(await p.locator('.result-row').count(),3);await p.locator('.result-row details').first().locator('summary').click();assert.match(await p.locator('.result-row').first().textContent(),/Cycle entry/);
+ for(const ext of ['json','csv']){const next=p.waitForEvent('download');await p.locator('#'+ext).click();const d=await next;const s=await readFile(await d.path(),'utf8');if(ext==='json')assert.equal(JSON.parse(s).rows.length,4);else assert.match(s,/stop@example.com/);}
+ assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await p.evaluate(()=>scrollTo(0,0));await p.screenshot({path:join(evidence,'build-ui-'+width+'.png'),fullPage:true});
+ await p.locator('#input').fill('Mailbox,ForwardTo\n<img src=x onerror=alert(1)>,');assert.equal(await p.locator('#json').isDisabled(),true);assert.equal(await p.locator('.result-row').count(),0);await p.locator('#review').click();assert.equal(await p.locator('#error img').count(),0);assert.equal(await p.locator('#input').inputValue(),'Mailbox,ForwardTo\n<img src=x onerror=alert(1)>,');
+ await p.locator('#clear').click();assert.equal(await p.locator('#input').inputValue(),'');assert.equal(await p.locator('#confirm').isChecked(),false);assert.equal(await p.locator('#input').evaluate(e=>e===document.activeElement),true);assert.deepEqual(errors,[]);assert.ok(requests.every(r=>r.startsWith(url)));await writeFile(join(evidence,'build-browser-'+width+'.json'),JSON.stringify({errors,requests},null,2),{flag:'wx'});
+ }
+});
